@@ -79,7 +79,13 @@ export default function GyroscopeScreen() {
 
   const handleButtonPress = async (buttonName: string) => {
     if (!conected) return;
-    await WebService.sendButtonAction(buttonName);
+    let action;
+    if (presentando) {
+      action = buttonName;
+    } else {
+      action = buttonName === 'siguiente' ? 'click' : 'secondary_click';
+    }
+    await WebService.sendButtonAction(action);
   };
 
   const formatIpAddress = (text: string) => {
@@ -139,10 +145,10 @@ export default function GyroscopeScreen() {
 
       <View style={indexCSS.bottomButtonContainer}>
         <TouchableOpacity style={indexCSS.bottomButton} onPress={() => handleButtonPress('siguiente')}>
-          <Icon name="chevron-circle-left" size={30} color="#ffffff" />
+          <Icon name={presentando ? 'plus' : 'hand-pointer-o'} size={30} color="#ffffff" />
         </TouchableOpacity>
         <TouchableOpacity style={indexCSS.bottomButton} onPress={() => handleButtonPress('anterior')}>
-          <Icon name="chevron-circle-right" size={30} color="#ffffff" />
+          <Icon name={presentando ? 'minus' : 'hand-peace-o'} size={30} color="#ffffff" />
         </TouchableOpacity>
       </View>
 
