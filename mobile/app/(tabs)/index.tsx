@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, TouchableOpacity, TextInput, Dimensions, Animated, LogBox, Alert } from 'react-native';
 import { Gyroscope } from 'expo-sensors';
 import WebSocketService from './../services/WebSocketService';
 import WebService from './../services/WebService';
-import { LogBox } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import indexCSS from './../styles/index';
 
 LogBox.ignoreAllLogs();
 
@@ -14,12 +14,19 @@ export default function GyroscopeScreen() {
   const [initialRotation, setInitialRotation] = useState({ x: 0, y: 0, z: 0 });
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [presentando, setPresentando] = useState(false);
+  const [conected, setConected] = useState(false);
   const rotationRef = useRef(rotation);
-  const webSocketService = useRef(new WebSocketService());
+  const webSocketService = useRef(new WebSocketService(setConected));
+
+  const [ip, setIp] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const slideAnim = useState(new Animated.Value(0))[0];
+
+  const maxSlideWidth = Dimensions.get('window').width;
 
   useEffect(() => {
     let lastTimestamp = Date.now();
-    webSocketService.current.connect();
 
     const subscription = Gyroscope.addListener((data) => {
       const currentTime = Date.now();
@@ -50,11 +57,11 @@ export default function GyroscopeScreen() {
 
     return () => {
       subscription.remove();
-      webSocketService.current.disconnect();
     };
   }, [isMeasuring]);
 
   const handlePresentButtonPress = async () => {
+    if (!conected) return;
     const action = presentando ? 'apagar' : 'presentar';
     await WebService.sendButtonAction(action);
     setPresentando(!presentando);
@@ -71,78 +78,99 @@ export default function GyroscopeScreen() {
   };
 
   const handleButtonPress = async (buttonName: string) => {
+    if (!conected) return;
     await WebService.sendButtonAction(buttonName);
   };
 
+  const formatIpAddress = (text: string) => {
+    let cleaned = text.replace(/[^\d.]/g, ''); 
+    let segments = cleaned.split('.'); 
+    segments = segments.map(segment => segment.slice(0, 3)).slice(0, 4); 
+    return segments.join('.');
+  };
+
+  const isValidIpAddress = (ip: string) => {
+    const regex = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)){3}$/;
+    return regex.test(ip);
+  };
+
+  const handleSave = () => {
+    if (isValidIpAddress(inputValue)) {
+      setIp(inputValue);
+      webSocketService.current.connect(inputValue);
+      WebService.setBaseURL(inputValue);
+      toggleExpand();
+    } else {
+      Alert.alert('Dirección IP inválida', 'Por favor, ingresa una dirección IPv4 válida.');
+    }
+  };
+
+  const toggleExpand = () => {
+    if (expanded) {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setExpanded(false));
+    } else {
+      setExpanded(true);
+      Animated.timing(slideAnim, {
+        toValue: maxSlideWidth,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
+
+  const getToggleButtonColor = () => {
+    if (ip === '') return '#ffffff';
+    return conected ? 'rgb(78,167,46)' : 'rgb(194,20,20)';
+  };
+
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.presentButton} onPress={handlePresentButtonPress}>
+    <View style={indexCSS.container}>
+      <TouchableOpacity style={indexCSS.presentButton} onPress={handlePresentButtonPress}>
         <Icon name={presentando ? 'stop' : 'play'} size={30} color="#ffffff" />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.highlightButton} onPressIn={startMeasuring} onPressOut={stopMeasuring}>
+      <TouchableOpacity style={indexCSS.highlightButton} onPressIn={startMeasuring} onPressOut={stopMeasuring}>
         <Icon name="mouse-pointer" size={30} color="#ffffff" />
       </TouchableOpacity>
-      <View style={styles.bottomButtonContainer}>
-        <TouchableOpacity style={styles.bottomButton} onPress={() => handleButtonPress('siguiente')}>
+
+      <View style={indexCSS.bottomButtonContainer}>
+        <TouchableOpacity style={indexCSS.bottomButton} onPress={() => handleButtonPress('siguiente')}>
           <Icon name="chevron-circle-left" size={30} color="#ffffff" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomButton} onPress={() => handleButtonPress('anterior')}>
+        <TouchableOpacity style={indexCSS.bottomButton} onPress={() => handleButtonPress('anterior')}>
           <Icon name="chevron-circle-right" size={30} color="#ffffff" />
         </TouchableOpacity>
       </View>
+
+      <Animated.View style={[indexCSS.slideContainer, { width: slideAnim }]}>
+        {expanded && (
+          <View style={indexCSS.inputGroup}>
+            <TextInput
+              style={indexCSS.input}
+              placeholder="Server IP"
+              value={inputValue}
+              keyboardType="numeric"
+              onChangeText={(text) => {
+                const formatted = formatIpAddress(text);
+                setInputValue(formatted);
+              }}
+            />
+            <TouchableOpacity style={indexCSS.saveButton} onPress={handleSave}>
+              <Icon name="save" size={20} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
+      
+      <Animated.View style={[indexCSS.toggleButton, { transform: [{ translateX: slideAnim }] }]}>
+        <TouchableOpacity onPress={toggleExpand}>
+          <Icon name={expanded ? 'chevron-right' : 'chevron-left'} size={20} color={getToggleButtonColor()} />
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
-
-const { height, width } = Dimensions.get('window');
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgb(80, 80, 80)',
-  },
-  presentButton: {
-    position: 'absolute',
-    top: 40,
-    height: height * 0.20,
-    width: '90%',
-    backgroundColor: 'rgb(50, 50, 50)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 5,
-    borderColor: 'rgb(50, 50, 50)',
-    borderWidth: 1,
-    marginHorizontal: 20,
-  },
-  highlightButton: {
-    height: height * 0.45,
-    width: '90%',
-    backgroundColor: 'rgb(50, 50, 50)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 5,
-    borderColor: 'rgb(50, 50, 50)',
-    borderWidth: 1,
-    marginTop: 20,
-  },
-  bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '90%',
-  },
-  bottomButton: {
-    width: (width * 0.5) - (width * 0.5 * 0.2),
-    height: height * 0.2,
-    backgroundColor: 'rgb(50, 50, 50)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 5,
-    borderColor: 'rgb(50, 50, 50)',
-    borderWidth: 1,
-  },
-});

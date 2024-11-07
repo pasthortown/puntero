@@ -4,15 +4,20 @@ class WebService {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = 'http://172.16.43.23:8080';
+    this.baseURL = '';
+  }
+
+  setBaseURL(ip: string): void {
+    this.baseURL = `http://${ip}:8080`;
   }
 
   async sendButtonAction(buttonName: string): Promise<void> {
+    if (!this.baseURL) return;
+    
     try {
-      const url = `${this.baseURL}/boton/${buttonName}`;
-      await axios.get(url);
+      await axios.get(`${this.baseURL}/boton/${buttonName}`);
     } catch (error) {
-      //ignored
+      console.error("Error al enviar la acción del botón:", error);
     }
   }
 }
