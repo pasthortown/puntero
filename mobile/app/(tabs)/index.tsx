@@ -27,34 +27,43 @@ export default function GyroscopeScreen() {
 
   useEffect(() => {
     let lastTimestamp = Date.now();
-
+  
+    const convertGyroscopeToOrientation = (x: number, y: number, z: number) => {
+      const alpha = Math.atan2(y, x) * (180 / Math.PI); // Yaw
+      const beta = Math.atan2(-z, Math.sqrt(x * x + y * y)) * (180 / Math.PI); // Pitch
+      const gamma = Math.atan2(y, z) * (180 / Math.PI); // Roll
+      return { alpha, beta, gamma };
+    };
+  
     const subscription = Gyroscope.addListener((data) => {
       const currentTime = Date.now();
       const deltaTime = (currentTime - lastTimestamp) / 1000;
-
+  
       if (isMeasuring) {
         const newRotation = {
           x: rotationRef.current.x + data.x * deltaTime * (180 / Math.PI),
           y: rotationRef.current.y + data.y * deltaTime * (180 / Math.PI),
           z: rotationRef.current.z + data.z * deltaTime * (180 / Math.PI),
         };
-        
+  
         setRotation(newRotation);
         rotationRef.current = newRotation;
-
+  
+        const { alpha, beta, gamma } = convertGyroscopeToOrientation(newRotation.x, newRotation.y, newRotation.z);
+  
         webSocketService.current.sendData({
-          x: newRotation.x - initialRotation.x,
-          y: newRotation.y - initialRotation.y,
-          z: newRotation.z - initialRotation.z,
+          x: alpha - initialRotation.x,
+          y: beta - initialRotation.y,
+          z: gamma - initialRotation.z,
         });
       }
-
+  
       setGyroscopeData(data);
       lastTimestamp = currentTime;
     });
-
+  
     Gyroscope.setUpdateInterval(100);
-
+  
     return () => {
       subscription.remove();
     };

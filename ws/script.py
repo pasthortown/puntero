@@ -75,10 +75,11 @@ async def handle_connection(websocket, path):
             reset_task = asyncio.create_task(reset_prev_values())
             try:
                 data = json.loads(message)
-                vertical = data.get("x")
-                axial = data.get("y")
-                horizontal = data.get("z")
-                movePointer(vertical, horizontal)
+                x = data.get("x")
+                y = data.get("y")
+                z = data.get("z")
+                print(f"x: {x}, y: {y}, z: {z}")
+                # movePointer(vertical, horizontal)
             except json.JSONDecodeError:
                 print("Error: El mensaje recibido no es un JSON válido")
     except websockets.exceptions.ConnectionClosed as e:
