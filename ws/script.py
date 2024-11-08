@@ -18,7 +18,7 @@ def get_total_screen_area():
     height_area = max_y - min_y
     return width_area, height_area, min_x, min_y
 
-def movePointer(vertical, horizontal):
+def movePointer(horizontal, vertical):
     global prev_horizontal
     global prev_vertical
     
@@ -36,8 +36,8 @@ def movePointer(vertical, horizontal):
     prev_horizontal = horizontal
     prev_vertical = vertical
     
-    pixel_change_x = -(horizontal_change / 75) * width_area
-    pixel_change_y = -(vertical_change / 25) * height_area
+    pixel_change_x = (horizontal_change / 75) * width_area
+    pixel_change_y = (vertical_change / 25) * height_area
     
     new_x = max(min_x, min(current_x + pixel_change_x, min_x + width_area - 1))
     new_y = max(min_y, min(current_y + pixel_change_y, min_y + height_area - 1))
@@ -75,11 +75,10 @@ async def handle_connection(websocket, path):
             reset_task = asyncio.create_task(reset_prev_values())
             try:
                 data = json.loads(message)
-                x = data.get("x")
-                y = data.get("y")
-                z = data.get("z")
-                print(f"x: {x}, y: {y}, z: {z}")
-                # movePointer(vertical, horizontal)
+                Ax = data.get("Ax")
+                Ay = data.get("Ay")
+                print(f"Ax: {Ax}, Ay: {Ay}")
+                movePointer(Ax, Ay)
             except json.JSONDecodeError:
                 print("Error: El mensaje recibido no es un JSON válido")
     except websockets.exceptions.ConnectionClosed as e:
